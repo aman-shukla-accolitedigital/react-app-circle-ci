@@ -33,7 +33,7 @@ jobs:
           name: Vite build
           command: npm run build
       - run:
-          name: Create the ~/artifacts directory if it doesn't exist
+          name: Create the ~/artifacts directory if it doesnt exist
           command: mkdir -p ~/artifacts
       # Copy output to artifacts dir
       - run:
