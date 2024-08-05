@@ -1,31 +1,86 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/configuration-reference
 version: 2.1
+orbs:
+  node: circleci/node@5
+  aws-s3: circleci/aws-s3@3.1.1
+  # aws-s3: circleci/aws-s3@4.0.0 # use the AWS S3 orb in your configuration
+  # aws-cli: circleci/aws-cli@4.1.3
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/jobs-steps/#jobs-overview & https://circleci.com/docs/configuration-reference/#jobs
 jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/executor-intro/ & https://circleci.com/docs/configuration-reference/#executor-job
-    docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
-
-    # Add steps to the job
-    # See: https://circleci.com/docs/jobs-steps/#steps-overview & https://circleci.com/docs/configuration-reference/#steps
+  checkout_and_install:
+    executor: node/default
+    working_directory: ~/project
     steps:
-      # Checkout the code as the first step.
-      - checkout
+      - checkout:
+          path: ~/project
+      - node/install-packages:
+          pkg-manager: npm
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: Install dependencies
+          command: npm install
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+            
+  build-node:
+    # Build node project
+    executor: node/default
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Vite build
+          command: npm run build
+      - run:
+          name: Create the ~/artifacts directory if it doesn't exist
+          command: mkdir -p ~/artifacts
+      # Copy output to artifacts dir
+      - run:
+          name: Copy artifacts
+          command: cp -R build dist public .output .next .docusaurus ~/artifacts 2>/dev/null || true | ls -al | find .
+      - store_artifacts:
+          path: ~/artifacts
+          destination: node-build
+      - persist_to_workspace:
+          root: ~/artifacts
+          paths:
+            - .
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
+  deploy:
+    # This is an example deploy job, not actually used by the workflow
+    docker:
+      - image: cimg/base:stable
+       
+    steps:
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: ~/project
+      - run:
+          name: List Directory
+          command: ls -al
+      # - run:
+      #     name: Configure AWS CLI
+          # command: |
+          #   echo "[default]" > ~/.aws/credentials
+          #   echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+          #   echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+          #   aws configure set region us-east-1
+    
+      - aws-s3/sync:
+          from: dist
+          to: 's3://circle-ci-aman'
+
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  test_and_build:
     jobs:
-      - say-hello
+      - checkout_and_install
+      - build-node:
+          requires:
+            - checkout_and_install
+      - deploy:
+          requires:
+            - build-node # Only run deploy job once the build job has completed
+          filters:
+            branches:
+              only: main # Only deploy when the commit is on the Main branch
