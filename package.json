@@ -13,13 +13,16 @@
     "axios": "^1.7.2",
     "single-spa-vue": "^3.0.0",
     "systemjs-webpack-interop": "^2.3.7",
-    "vite-plugin-single-spa": "^0.7.0",
-    "vue": "^3.4.31"
+    "vite-plugin-single-spa": "^0.7.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.5",
-    "typescript": "^5.2.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/vue": "^2.0.0",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "typescript": "^5.5.4",
     "vite": "^5.3.4",
+    "vue": "^3.4.35",
     "vue-tsc": "^2.0.24"
   }
 }
